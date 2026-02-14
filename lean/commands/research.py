@@ -129,10 +129,15 @@ def research(project: Path,
                                                                                              algorithm_file.parent,
                                                                                              False)
 
+    organization_id = container.organization_manager.get_working_organization_id()
+    if organization_id is None and (data_provider_historical == "QuantConnect" or download_data):
+        raise RuntimeError(
+            "QuantConnect data provider requires authentication. "
+            "Use --data-provider-historical Local for local data without QuantConnect."
+        )
     paths_to_mount = None
 
     if data_provider_historical is not None:
-        organization_id = container.organization_manager.try_get_working_organization_id()
         data_provider = non_interactive_config_build_for_name(lean_config, data_provider_historical,
                                                               cli_data_downloaders, kwargs, logger, environment_name)
         data_provider.ensure_module_installed(organization_id, container_module_version)

@@ -18,47 +18,43 @@ from click import argument
 from lean.click import LeanCommand
 from lean.commands import lean
 from lean.container import container
+from lean.constants import PROJECT_CONFIG_FILE_NAME
 
 
-@lean.command(cls=LeanCommand, name="project-delete", aliases=["delete-project"])
+def _resolve_project_path(project: str) -> Path:
+    """Resolve project name or path to a local project directory.
+
+    :param project: project name (directory name under CLI root) or path to project directory
+    :return: path to the project directory
+    :raises RuntimeError: if the project cannot be found locally
+    """
+    project_path = Path(project)
+    if project_path.is_absolute() or project_path.exists():
+        # Treat as path
+        if project_path.is_file():
+            project_path = project_path.parent
+        if (project_path / PROJECT_CONFIG_FILE_NAME).is_file():
+            return project_path
+        raise RuntimeError(f"'{project}' is not a valid project directory (no {PROJECT_CONFIG_FILE_NAME} found).")
+
+    # Treat as project name: look under CLI root
+    cli_root = container.lean_config_manager.get_cli_root_directory()
+    candidate = cli_root / project
+    if candidate.is_dir() and (candidate / PROJECT_CONFIG_FILE_NAME).is_file():
+        return candidate
+    raise RuntimeError(f"Project '{project}' was not found. Looked for directory '{candidate}' with {PROJECT_CONFIG_FILE_NAME}.")
+
+
+@lean.command(cls=LeanCommand, requires_lean_config=True, name="project-delete", aliases=["delete-project"])
 @argument("project", type=str)
 def delete_project(project: str) -> None:
-    """Delete a project locally and in the cloud if it exists.
+    """Delete a project locally.
 
-    The project is selected by name or cloud id.
+    The project is selected by name or path to the project directory.
     """
-    organization_id = container.organization_manager.try_get_working_organization_id()
-
-    # Remove project from cloud
-    api_client = container.api_client
-    all_projects = api_client.projects.get_all(organization_id)
     project_manager = container.project_manager
     logger = container.logger
 
-    project_id = None
-    try:
-        project_id = int(project)
-    except ValueError:
-        pass
-
-    projects = []
-    try:
-        projects = project_manager.get_projects_by_name_or_id(all_projects, project_id or project)
-    except RuntimeError:
-        # If searching by id, we cannot try lo locate the project locally
-        if project_id is not None:
-            raise RuntimeError(f"The project with ID {project_id} was not found in the cloud.")
-
-        # The project might only be local, look for the path
-        logger.info(f"The project {project} was not found in the cloud. It will be removed locally if it exists.")
-
-    full_project = next(iter(projects), None)
-
-    if full_project is not None:
-        api_client.projects.delete(full_project.projectId)
-
-    # Remove project locally
-    project_path = full_project.name if full_project is not None else project
-    project_manager.delete_project(Path(project_path))
-
+    project_path = _resolve_project_path(project)
+    project_manager.delete_project(project_path)
     logger.info(f"Successfully deleted project '{project_path}'")

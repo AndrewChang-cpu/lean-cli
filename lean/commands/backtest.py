@@ -358,7 +358,12 @@ def backtest(project: Path,
     if download_data:
         data_provider_historical = "QuantConnect"
 
-    organization_id = container.organization_manager.try_get_working_organization_id()
+    organization_id = container.organization_manager.get_working_organization_id()
+    if organization_id is None and (data_provider_historical == "QuantConnect" or download_data):
+        raise RuntimeError(
+            "QuantConnect data provider requires authentication. "
+            "Use --data-provider-historical Local for local data without QuantConnect."
+        )
     paths_to_mount = None
 
     engine_image, container_module_version, project_config = container.manage_docker_image(image, update, no_update,

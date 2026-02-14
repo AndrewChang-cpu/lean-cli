@@ -13,17 +13,15 @@
 
 from click import group
 
-from lean.commands.data.download import download
 from lean.commands.data.generate import generate
 
 
 @group()
 def data() -> None:
-    """Download or generate data for local use."""
+    """Generate data for local use."""
     # This method is intentionally empty
     # It is used as the command group for all `lean data <command>` commands
     pass
 
 
-data.add_command(download)
 data.add_command(generate)

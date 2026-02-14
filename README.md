@@ -8,6 +8,8 @@
 
 The Lean CLI is a cross-platform CLI aimed at making it easier to develop with the LEAN engine locally and in the cloud.
 
+**This fork is modified for local-only use:** no QuantConnect login, cloud, or data download. See [2/13/2026 Changes Made for Local Use](#2132026-changes-made-for-local-use) below.
+
 Visit the [documentation website](https://www.lean.io/docs/v2/lean-cli/key-concepts/getting-started) for comprehensive and up-to-date documentation.
 
 ## Highlights
@@ -62,6 +64,51 @@ A locally-focused workflow (local development, local execution) with the CLI may
 3. Work on your strategy in `./Project Name`.
 4. Run `lean research "Project Name"` to start a Jupyter Lab session to perform research in.
 5. Run `lean backtest "Project Name"` to run a backtest whenever there's something to test. This runs your strategy in a Docker container containing the same packages as the ones used on QuantConnect.com, but with your own data.
+
+## 2/13/2026 Changes Made for Local Use
+
+This fork was changed so you can use the open-source LEAN engine **only locally** for backtesting with your own data, without any QuantConnect account, login, or API calls.
+
+### Commands Removed
+
+- **Authentication:** `lean login`, `lean logout`, `lean whoami` (no QuantConnect auth).
+- **Cloud:** All `lean cloud` subcommands (backtest, live, object-store, optimize, pull, push, status).
+- **Data download from QuantConnect:** `lean data download` (only `lean data generate` remains for generating sample data).
+- **Live trading:** All `lean live` subcommands (deploy, stop, liquidate, command, add-security, cancel-order, submit-order, update-order).
+- **Encrypt/decrypt:** `lean encrypt`, `lean decrypt` (relied on QuantConnect encryption keys).
+- **Private cloud:** `lean private-cloud` group.
+
+### Commands Kept (Local-Only)
+
+- **lean init** — Scaffolds `lean.json` and `Data/` from the Lean GitHub repo. **No login or organization**; run in an empty directory.
+- **lean create-project** — Create a new project with starter code.
+- **lean backtest** — Run backtests locally. Use `--data-provider-historical Local` for your own data; QuantConnect data is not available without auth.
+- **lean data generate** — Generate random market data (no QuantConnect).
+- **lean report** — Generate HTML reports from backtest/live JSON results.
+- **lean config get/list/set/unset** — Manage CLI options. `user-id` and `api-token` are **optional** (not required for local use).
+- **lean build** — Build custom LEAN Docker images from source.
+- **lean library add/remove** — Add/remove NuGet or PyPI libraries.
+- **lean logs** — View recent backtest/live/optimization logs from disk.
+- **lean research** — Jupyter Lab research environment (use Local data when not authenticated).
+- **lean optimize** — Local parameter optimization (use Local data when not authenticated).
+- **lean object-store list/get/set/delete/properties** — Local object store (filesystem).
+- **lean delete-project** — **Local-only:** deletes the project by name or path on disk; no cloud delete.
+
+### Behavior Changes
+
+- **lean init:** Does not ask for credentials or organization. Creates config and data directory only. No `job-organization-id` is written.
+- **Root folder:** A directory with `lean.json` but no organization id is valid (no "old CLI folder" error).
+- **lean backtest / research / optimize:** If no organization is configured and you use QuantConnect as the data provider (or `--download-data`), the CLI reports that QuantConnect requires authentication and suggests `--data-provider-historical Local`. With Local data (or other non-QC providers that don't need installs), backtest/research/optimize run without credentials. Addon modules that require QuantConnect installs are skipped when no organization is set.
+- **lean delete-project:** Resolves the project by **name** (directory under the CLI root) or **path**, and deletes only the local project directory. No API or cloud delete.
+- **Config:** `user-id` and `api-token` are optional. The API client does not make requests when credentials are missing.
+- **Modules JSON:** The CLI loads `modules-1.14.json` from the local package when present (no CDN). If the file is missing, it tries the QuantConnect CDN once; on failure it raises an error suggesting you bundle the file for offline use.
+
+### Quick Start (Local-Only)
+
+1. In an empty directory, run `lean init --language python` (no login).
+2. Run `lean create-project "My Project"`.
+3. Add your data under `data/` or run `lean data generate` for sample data.
+4. Run `lean backtest "My Project" --data-provider-historical Local`.
 
 ## CLI Configurations
 

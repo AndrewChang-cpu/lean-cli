@@ -291,11 +291,14 @@ def optimize(project: Path,
     lean_config_manager = container.lean_config_manager
     lean_config = lean_config_manager.get_complete_lean_config(environment_name, algorithm_file, None)
 
-    organization_id = container.organization_manager.try_get_working_organization_id()
-
+    organization_id = container.organization_manager.get_working_organization_id()
     if download_data:
         data_provider_historical = "QuantConnect"
-
+    if organization_id is None and (data_provider_historical == "QuantConnect" or download_data):
+        raise RuntimeError(
+            "QuantConnect data provider requires authentication. "
+            "Use --data-provider-historical Local for local data without QuantConnect."
+        )
     paths_to_mount = None
 
     if data_provider_historical is not None:

@@ -11,20 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from lean.components.util.logger import Logger
 from lean.models.json_module import JsonModule
 from lean.models.logger import Option
 
 
-def build_and_configure_modules(target_modules: List[str], module_list: List[JsonModule], organization_id: str,
-                                lean_config: Dict[str, Any], properties: Dict[str, Any], logger: Logger,
+def build_and_configure_modules(target_modules: List[str], module_list: List[JsonModule],
+                                organization_id: Optional[str], lean_config: Dict[str, Any],
+                                properties: Dict[str, Any], logger: Logger,
                                 environment_name: str, module_version: str):
     """Builds and configures the given modules
 
     :param target_modules: the requested modules
     :param module_list: the available modules
-    :param organization_id: the organization id
+    :param organization_id: the organization id (None for local-only mode; modules requiring install are skipped)
     :param lean_config: the current lean configs
     :param properties: the user provided arguments
     :param logger: the logger instance
@@ -34,7 +35,7 @@ def build_and_configure_modules(target_modules: List[str], module_list: List[Jso
     for target_module_name in target_modules:
         module = non_interactive_config_build_for_name(lean_config, target_module_name, module_list, properties,
                                                        logger, environment_name)
-        # Ensures extra modules (not brokerage or data feeds) are installed.
+        # Ensures extra modules (not brokerage or data feeds) are installed when organization_id is set.
         module.ensure_module_installed(organization_id, module_version)
         lean_config["environments"][environment_name].update(module.get_settings())
 

@@ -11,44 +11,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import path
 from json import load
 from pathlib import Path
-from time import time
 
 json_modules = {}
 file_name = "modules-1.14.json"
 directory = Path(__file__).parent
 file_path = directory.parent / file_name
 
-# check if new file is available online
-url = f"https://cdn.quantconnect.com/cli/{file_name}"
-error = None
-try:
-    # fetch if file not available or fetched before 1 day
-    if not path.exists(file_path) or (time() - path.getmtime(file_path) > 86400):
-        from requests import get
-        res = get(url, timeout=5)
+# Prefer local bundled file; do not fetch from QuantConnect CDN when file exists (local-only friendly).
+if file_path.is_file():
+    with open(file_path, encoding="utf-8") as f:
+        data = load(f)
+        json_modules = data["modules"]
+else:
+    # Optional: try to fetch from CDN once when file is missing (e.g. first run before bundling).
+    error = None
+    try:
+        import requests
+        res = requests.get(f"https://cdn.quantconnect.com/cli/{file_name}", timeout=5)
         if res.ok:
-            new_content = res.json()
-            from json import dump
-            # create parents if not exists
+            data = res.json()
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, 'w', encoding='utf-8') as f:
-                dump(new_content, f, ensure_ascii=False, indent=4)
+            from json import dump
+            with open(file_path, "w", encoding="utf-8") as f:
+                dump(data, f, ensure_ascii=False, indent=4)
+            json_modules = data["modules"]
         else:
             res.raise_for_status()
-except Exception as e:
-    # No need to do anything if file isn't available
-    error = str(e)
-    pass
-
-# check if file exists
-if not Path(file_path).is_file():
-    error_message = f": {error}" if error is not None else ""
-    raise FileNotFoundError(
-        f"Modules json not found in the given path {file_path}{error_message}")
-
-with open(file_path) as f:
-    data = load(f)
-    json_modules = data['modules']
+    except Exception as e:
+        error = str(e)
+    if not json_modules:
+        error_message = f": {error}" if error else ""
+        raise FileNotFoundError(
+            f"Modules file not found at {file_path}. "
+            f"Bundle {file_name} in the lean package directory or ensure the CDN is reachable.{error_message}"
+        )

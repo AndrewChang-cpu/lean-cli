@@ -30,12 +30,12 @@ class CLIConfigManager:
         :param credentials_storage: the Storage instance for credentials
         """
         self.user_id = Option("user-id",
-                              "The user id used when making authenticated requests to the QuantConnect API.",
+                              "The user id used when making authenticated requests to the QuantConnect API (optional for local-only use).",
                               True,
                               credentials_storage)
 
         self.api_token = Option("api-token",
-                                "The API token used when making authenticated requests to the QuantConnect API.",
+                                "The API token used when making authenticated requests to the QuantConnect API (optional for local-only use).",
                                 True,
                                 credentials_storage)
 

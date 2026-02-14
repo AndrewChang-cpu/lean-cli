@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from lean.components.api.auth0_client import Auth0Client
 from lean.components.api.account_client import AccountClient
@@ -40,17 +40,17 @@ from lean.models.errors import AuthenticationError, RequestFailedError
 class APIClient:
     """The APIClient class manages communication with the QuantConnect API."""
 
-    def __init__(self, logger: Logger, http_client: HTTPClient, user_id: str, api_token: str) -> None:
+    def __init__(self, logger: Logger, http_client: HTTPClient, user_id: Optional[str], api_token: Optional[str]) -> None:
         """Creates a new APIClient instance.
 
         :param logger: the logger to use to print debug messages to
         :param http_client: the HTTP client to make HTTP requests with
-        :param user_id: the QuantConnect user id to use when sending authenticated requests
-        :param api_token: the QuantConnect API token to use when sending authenticated requests
+        :param user_id: the QuantConnect user id (None for local-only mode)
+        :param api_token: the QuantConnect API token (None for local-only mode)
         """
         self._logger = logger
         self._http_client = http_client
-        self.set_user_token(user_id, api_token)
+        self.set_user_token(user_id or "", api_token or "")
 
         # Create the clients containing the methods to send requests to the various API endpoints
         self.auth0 = Auth0Client(self)
@@ -72,9 +72,9 @@ class APIClient:
         self.users = UserClient(self)
         self.lean = LeanClient(self)
 
-    def set_user_token(self, user_id: str, api_token: str):
-        self._user_id = user_id
-        self._api_token = api_token
+    def set_user_token(self, user_id: Optional[str], api_token: Optional[str]):
+        self._user_id = user_id or ""
+        self._api_token = api_token or ""
 
     def get(self, endpoint: str, parameters: Dict[str, Any] = {}) -> Any:
         """Makes an authenticated GET request to the given endpoint with the given parameters.
@@ -105,8 +105,10 @@ class APIClient:
     def is_authenticated(self) -> bool:
         """Checks whether the current credentials are valid.
 
-        :return: True if the current credentials are valid, False if not
+        :return: True if the current credentials are valid, False if not or if in local-only mode (no credentials)
         """
+        if not self._user_id or not self._api_token:
+            return False
         try:
             self.get("authenticate")
             return True
@@ -124,6 +126,8 @@ class APIClient:
         :param retry_http_5xx: True if the request should be retried on an HTTP 5xx response, False if not
         :return: the parsed response of the request
         """
+        if not self._user_id or not self._api_token:
+            raise AuthenticationError()
         from hashlib import sha256
         from urllib.parse import urljoin
         from lean import __version__
